@@ -8,13 +8,14 @@
 `define HS_PW    128
 `define HS_FP    40
 `define HS_BP    88
-`define VS_SYNC  663168
-`define VS_DISP  633600
-`define VS_PW    4224
-`define VS_FP    1056
-`define VS_BP    24288
 
+`define VS_SYNC 628
+`define VS_DISP 600
+`define VS_PW   4
+`define VS_FP   1
+`define VS_BP   23
 // VGA module for 800x600 resolution
+// POSITIVE SYNC POLARITY
 module vga
    (input logic clk_40, rst_n,
     output logic HS, VS, blank,
@@ -26,9 +27,6 @@ module vga
 
     logic is_hs_pw, is_hs_bp, is_hs_disp, is_hs_fp;
     logic is_vs_pw, is_vs_bp, is_vs_disp, is_vs_fp;
-    logic cond1, cond2;
-    assign cond1 = (VS_count == (`VS_SYNC - 1'b1));
-    assign cond2 = (HS_count == (`HS_SYNC - 1'b1));
 
     // HS, VS counters
     always_ff @(posedge clk_40, negedge rst_n) begin
@@ -36,8 +34,10 @@ module vga
             {VS_count, HS_count} <= '0;
         end
         else begin
-            VS_count <= ((VS_count == (`VS_SYNC - 1'b1)) ? '0 : VS_count + 1'b1);
             HS_count <= ((HS_count == (`HS_SYNC - 1'b1)) ? '0 : HS_count + 1'b1);
+            if(HS_count == `HS_SYNC - 1'b1) begin
+                VS_count <= ((VS_count == (`VS_SYNC - 1'b1)) ? '0 : VS_count + 1'b1);
+            end
         end
     end
 
@@ -47,41 +47,53 @@ module vga
             {row, col} <= '0;
         end
         else begin
-            // reset col (800th col)
-            if(col == 10'd799) begin
-                col <= '0;
+            // update row at the end of HS line
+            if(HS_count == `HS_PW + `HS_BP + `HS_DISP + `HS_FP - 1) begin
+                row <= (row == `NUM_ROWS - 1) ? '0 : row + 1;
             end
-            // increment from 0 -> 799 during HS display period
-            else if(is_hs_disp) begin
-                col <= col + 1;
-            end
-            // reset row (600th row)
-            if(row == 10'd599) begin
-                row <= '0;
-            end
-            // increment row at the end of every HS display period, go from 0 -> 599
-            else if(HS_count == 11'd1016) begin
-                row <= row + 1;
+            // update col during display period (800th col)
+            if(is_hs_disp) begin
+                col <= (col == `NUM_COLS - 1) ? '0 : col + 1;
             end
         end
     end
 
-    assign is_hs_pw = (11'd0 <= HS_count) && (HS_count <= 11'd127);
-    assign is_hs_bp = (11'd128 <= HS_count) && (HS_count <= 11'd215);
-    assign is_hs_disp = (11'd216 <= HS_count) && (HS_count <= 11'd1015);
-    assign is_hs_fp = (11'd1016 <= HS_count) && (HS_count <= 11'd1055);
+    assign is_hs_pw = (11'd0 <= HS_count) && (HS_count < `HS_PW);
+    assign is_hs_bp = (`HS_PW <= HS_count) && (HS_count < `HS_PW + `HS_BP);
+    assign is_hs_disp = (`HS_PW + `HS_BP <= HS_count) && (HS_count < `HS_PW + `HS_BP + `HS_DISP);
+    assign is_hs_fp = (`HS_PW + `HS_BP + `HS_DISP <= HS_count) && (HS_count < `HS_PW + `HS_BP + `HS_DISP + `HS_FP);
 
-    assign is_vs_pw = (20'd0 <= VS_count) && (HS_count <= 20'd4223);
-    assign is_vs_bp = (20'd4224 <= HS_count) && (HS_count <= 20'd28511);
-    assign is_vs_disp = (20'd28512 <= HS_count) && (HS_count <= 20'd662111);
-    assign is_vs_fp = (20'd662112 <= HS_count) && (HS_count <= 20'd663167);
+    assign is_vs_pw = (20'd0 <= VS_count) && (VS_count < `VS_PW);
+    assign is_vs_bp = (`VS_PW <= VS_count) && (VS_count < `VS_PW + `VS_BP);
+    assign is_vs_disp = (`VS_PW + `VS_BP <= VS_count) && (VS_count < `VS_PW + `VS_BP + `VS_DISP);
+    assign is_vs_fp = (`VS_PW + `VS_BP + `VS_DISP <= VS_count) && (VS_count < `VS_PW + `VS_BP + `VS_DISP + `VS_FP);
     
     //FINAL OUTPUTS OF VGA MODULE
-    assign HS = ~is_hs_pw;
-    assign VS = ~is_vs_pw;
+    assign HS = is_hs_pw;
+    assign VS = is_vs_pw;
     assign blank = ~(is_hs_disp & is_vs_disp);
 
 endmodule : vga
+
+// module vga_tb();
+
+//     logic clk_40, rst_n, HS, VS, blank;
+//     logic [9:0] row, col;
+//     vga dut (.*);
+
+//     initial begin
+//         clk_40 = 1'b0;
+//         rst_n = 1'b0;
+//         rst_n <= 1'b1;
+//         forever #5 clk_40 = ~clk_40;
+//     end
+
+//     initial begin
+//         #4000000;
+//     end
+
+
+// endmodule : vga_tb
 
 // //Testbench of vga module, same as the test pattern given in the lab handout
 // module vga_test

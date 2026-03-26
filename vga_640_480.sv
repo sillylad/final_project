@@ -20,9 +20,9 @@ module vga_640_480
     logic isB_hp, isB_hd;
 
     //Checks if a horizontal or vertical sync period has been completed
-    MagComp #(20) vs_done(.A(Q_VS), .B(20'd833599), .AeqB(VS_done),
+    MagComp #(20) vs_done(.A(Q_VS), .B(20'd416799), .AeqB(VS_done),
                                                     .AgtB(), .AltB());
-    MagComp #(11) hs_done(.A(Q_HS), .B(11'd1599), .AeqB(HS_done),
+    MagComp #(11) hs_done(.A(Q_HS), .B(11'd799), .AeqB(HS_done),
                                                     .AgtB(), .AltB());
 
     //Counts the clock cycles that have occurred during a VS or HS period
@@ -39,14 +39,14 @@ module vga_640_480
                                     .D(D_col), .Q(Q_col));
 
     //Logic to check which part of the VS or HS signal we are in
-    RangeCheck #(20) VS_pulse(.val(Q_VS), .high(20'd3199), .low(20'd0),
+    RangeCheck #(20) VS_pulse(.val(Q_VS), .high(20'd1599), .low(20'd0),
                               .is_between(isB_vp));
-    RangeCheck #(20) VS_display(.val(Q_VS), .high(20'd817599), .low(20'd49600),
+    RangeCheck #(20) VS_display(.val(Q_VS), .high(20'd408799), .low(20'd24800),
                                 .is_between(isB_vd));
 
-    RangeCheck #(11) HS_pulse(.val(Q_HS), .high(11'd191), .low(11'd0),
+    RangeCheck #(11) HS_pulse(.val(Q_HS), .high(11'd95), .low(11'd0),
                              .is_between(isB_hp));
-    RangeCheck #(11) HS_display(.val(Q_HS), .high(11'd1567), .low(11'd288),
+    RangeCheck #(11) HS_display(.val(Q_HS), .high(11'd783), .low(11'd144),
                                 .is_between(isB_hd));
 
     //Defining states and flipflops for controlling FSM
@@ -59,7 +59,7 @@ module vga_640_480
                                         .reset_L(~reset), .preset_L(1'b1));
 
     //CONTROL POINT LOGIC
-    assign en_col = ((~Q_HS[0]) & isB_hd);
+    assign en_col = (isB_hd);
     assign en_row = HS_done & isB_vd;
     assign en_hs = ~HS_done;
     assign clear_hs = HS_done;
