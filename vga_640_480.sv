@@ -31,12 +31,12 @@ module vga_640_480
     Counter #(11) HSCounter(.en(en_hs), .clear(clear_hs), .load(load_hs),
                              .up(1'b1),  .clock(CLOCK_50), .D(D_HS), .Q(Q_HS));
     //Counts the current row and col being displayed on the monitor
-    Counter #(9) RowCounter(.en(en_row), .clear(clear_row), .load(load_row),
+    Counter #(9) RowCounter(.en(en_row), .clear(clear_row), .load('0),
                              .up(1'b1),  .clock(CLOCK_50),
-                                    .D(D_row), .Q(Q_row));
-    Counter #(10) ColCounter(.en(en_col), .clear(clear_col), .load(load_col),
+                                    .D('0), .Q(Q_row));
+    Counter #(10) ColCounter(.en(en_col), .clear(clear_col), .load('0),
                              .up(1'b1),  .clock(CLOCK_50),
-                                    .D(D_col), .Q(Q_col));
+                                    .D('0), .Q(Q_col));
 
     //Logic to check which part of the VS or HS signal we are in
     RangeCheck #(20) VS_pulse(.val(Q_VS), .high(20'd3199), .low(20'd0),

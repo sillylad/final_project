@@ -25,14 +25,18 @@ module ChipInterface (
         if((row == 0) & (col == 0)) begin
             rgb = '1;
         end
-        else if((col == 0)) begin
+        else if((row == 10'd0) | (row == 10'd479)) begin
+            rgb = 6'b11_00_11;
+        end
+        else if((col == 0) | (col == 10'd639)) begin
             rgb = 6'b11_00_00;
         end
-        else if(col == 10'd639) begin
-            rgb = 6'b00_11_00;
-        end
-        else if((row == 10'd479)) begin
+        else if((col == 10'd50) | (col == 10'd70) | (col == 10'd100)) begin
             rgb = 6'b00_00_11;
+        end
+
+        else if(col <= 10'd639 | col >= 10'd0) begin
+            rgb = 6'b00_11_00;
         end
         else begin
             rgb = '0;
