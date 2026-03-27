@@ -20,8 +20,25 @@ module ChipInterface (
     // vga vga800600 (.clk_40(clk), .rst_n(~btn[0]), .HS(VGA_HS), .VS(VGA_VS),
     //                 .blank(), .row(row), .col(col));
     // vga_test vt(.col(col), .row(row), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B));
-
-    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? 6'b101010 : '0;
+    logic [5:0] rgb;
+    always_comb begin
+        if((row == 0) & (col == 0)) begin
+            rgb = '1;
+        end
+        else if((col == 0)) begin
+            rgb = 6'b11_00_00;
+        end
+        else if(col == 10'd639) begin
+            rgb = 6'b00_11_00;
+        end
+        else if((row == 10'd479)) begin
+            rgb = 6'b00_00_11;
+        end
+        else begin
+            rgb = '0;
+        end
+    end
+    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
     assign led = {R1, R0, G1, G0, B1, B0};
 
 
