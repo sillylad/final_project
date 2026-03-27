@@ -1,49 +1,36 @@
 `default_nettype none
 
+// Original ChipInterface module for testing vga in Task 2
 module ChipInterface (
-    input logic clk,
+    input logic clk, // 25Mhz clock
     input logic [6:0] btn,
     output logic R0, R1, G0, G1, B0, B1, VGA_HS, VGA_VS,
     output logic [7:0] led
-);
+    );
 
-    logic [9:0] col;
     logic [8:0] row;
-    logic [7:0] VGA_R, VGA_G, VGA_B;
+    logic [9:0] col;
     logic blank;
+
+    logic [7:0] VGA_R, VGA_G, VGA_B;
 
     logic pll_locked1, clk50;
     pll_half p50 (.clk(clk), .clkout0(clk50), .locked(pll_locked1));
 
-    vga_640_480 vga640480 (.CLOCK_50(clk50), .reset(~btn[0] | ~pll_locked1), .HS(VGA_HS), .VS(VGA_VS),
-                    .blank(blank), .row(row), .col(col));
-    // vga vga800600 (.clk_40(clk), .rst_n(~btn[0]), .HS(VGA_HS), .VS(VGA_VS),
-    //                 .blank(), .row(row), .col(col));
-    // vga_test vt(.col(col), .row(row), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B));
+    // assign VGA_SYNC_N = 1'b0;
+    // assign VGA_CLK = ~clk;
+    // assign VGA_BLANK_N = ~blank;
 
-    // assign {R1, R0, G1, G0, B1, B0} = (~blank) ? 6'b101010 : '0;
-    logic [5:0] rgb;
+    vga DUT (.CLOCK_50(clk50), .reset(~btn[0] & pll_locked1), .HS(VGA_HS), .VS(VGA_VS),
+                .blank(blank), .row(row), .col(col));
 
-    always_comb begin
-        if(row == 9'd0 || row == 9'd479) begin
-            rgb = '1;
-        end
-        else begin
-            rgb = '0;
-        end
-    end
-    // assign {R1, R0, G1, G0, B1, B0} = (~blank) ? {VGA_R[7:6], VGA_B[7:6], VGA_G[7:6]} : '0;
-    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
-    assign led[5:0] = {R1, R0, G1, G0, B1, B0};
+    vga_test tb (.*);
+    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? {VGA_R[1:0], VGA_B[1:0], VGA_G[1:0]} : '0;
+    assign led = {R1, R0, G1, G0, B1, B0};
 
 
+endmodule: ChipInterface
 
-endmodule : ChipInterface
-
-// diamond 3.7 accepts this PLL
-// diamond 3.8-3.9 is untested
-// diamond 3.10 or higher is likely to abort with error about unable to use feedback signal
-// cause of this could be from wrong CPHASE/FPHASE parameters
 module pll_half
 (
     input clk, // 25 MHz, 0 deg
