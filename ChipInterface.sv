@@ -20,7 +20,22 @@ module ChipInterface (
                     .blank(blank), .row(row), .col(col));
 
 
+    // generate test pattern
     logic [5:0] rgb;
+
+    vga_test_pattern vtp(.row(row), .col(col), .rgb(rgb));
+
+    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
+    assign led = {R1, R0, G1, G0, B1, B0};
+
+
+endmodule : ChipInterface
+
+module vga_test_pattern (
+    input logic [9:0] row, col,
+    output logic [5:0] rgb
+);
+
     always_comb begin
         if((row == 0) & (col == 0)) begin
             rgb = '1;
@@ -43,13 +58,8 @@ module ChipInterface (
         end
     end
 
-    assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
-    assign led = {R1, R0, G1, G0, B1, B0};
 
-
-endmodule : ChipInterface
-
-
+endmodule : vga_test_pattern
 // diamond 3.7 accepts this PLL
 // diamond 3.8-3.9 is untested
 // diamond 3.10 or higher is likely to abort with error about unable to use feedback signal
