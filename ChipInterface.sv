@@ -7,17 +7,43 @@ module ChipInterface (
     output logic [7:0] led
 );
 
+    // 40Mhz needed for 800x600
+    logic pll_locked, clk_40;
+
+    pll40M c40 (.clk_25(clk), .clk_40(clk_40), .locked(pll_locked));
+
+    // synchronize buttons
+    logic tmp_btn, rst_n;
+    logic [3:0] tmp_dir, dir;
+    logic tmp_start_game, start_game;
+
+    always_ff @(posedge clk) begin
+        tmp_btn <= btn[0];        
+        rst_n <= tmp_btn;
+
+        tmp_dir <= btn[4:1];
+        dir <= tmp_dir;
+
+        tmp_start_game <= btn[5];
+        start_game <= tmp_start_game;
+    end 
+
+    // VGA for driving display
     logic [9:0] col;
     logic [9:0] row;
     logic [7:0] VGA_R, VGA_G, VGA_B;
     logic blank;
+    logic game_clk;
 
-    logic pll_locked, clk_40;
-    
-    // 40Mhz needed for 800x600
-    pll40M c40 (.clk_25(clk), .clk_40(clk_40), .locked(pll_locked));
-    vga vga_800_600 (.clk(clk_40), .rst_n(btn[0]), .HS(VGA_HS), .VS(VGA_VS),
-                    .blank(blank), .row(row), .col(col));
+    // Drive VGA timing signals
+    vga vga_800_600 (.clk(clk_40), .rst_n(rst_n), .HS(VGA_HS), .VS(VGA_VS),
+                    .blank(blank), .row(row), .col(col), .game_clk(game_clk));
+
+    // Module handling all the snake game logic and coloring
+    Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
+                .start_game(start_game), .dir(dir),
+                .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA(VGA_B),
+                .buzz(buzz));
 
 
     // generate test pattern
@@ -28,9 +54,9 @@ module ChipInterface (
     assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
     assign led = {R1, R0, G1, G0, B1, B0};
 
-
 endmodule : ChipInterface
 
+// Test vertical and horizontal sync with test pattern
 module vga_test_pattern (
     input logic [9:0] row, col,
     output logic [5:0] rgb
@@ -60,6 +86,9 @@ module vga_test_pattern (
 
 
 endmodule : vga_test_pattern
+
+
+
 // diamond 3.7 accepts this PLL
 // diamond 3.8-3.9 is untested
 // diamond 3.10 or higher is likely to abort with error about unable to use feedback signal
