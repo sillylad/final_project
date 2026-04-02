@@ -21,10 +21,10 @@ module ChipInterface (
         tmp_btn <= btn[0];        
         rst_n <= tmp_btn;
 
-        tmp_dir <= btn[4:1];
+        tmp_dir <= btn[6:3];
         dir <= tmp_dir;
 
-        tmp_start_game <= btn[5];
+        tmp_start_game <= btn[1];
         start_game <= tmp_start_game;
     end 
 
