@@ -9,12 +9,6 @@ typedef enum logic [3:0]   {UP_RIGHT, UP_LEFT, DOWN_RIGHT, DOWN_LEFT,
                             UP_DOWN, LEFT_RIGHT,
                             EMPTY} snake_style_t;
 
-// data struct for a single snake tile
-typedef struct packed {
-    logic valid_snake;
-    snake_style_t tile_style;
-} snake_tile;
-
 typedef enum logic [1:0] {MOVE_UP, MOVE_LEFT, MOVE_RIGHT, MOVE_DOWN} snake_move;
 
 
@@ -45,17 +39,21 @@ module Snake (
             end
         end
     end
-    // 16x16 array of snake_tiles
-    snake_tile [15:0][15:0] snake_data;
+    // 8x8 array of snake_tiles for fruit and display logic
+    snake_style_t [7:0][7:0] snake_tiles;
+
+    // 64-element shift register for snake motion tracking
+    logic [63:0][2:0][2:0] snake_data;
     logic snake_init, grow, snake_enable;
-    logic [7:0] snake_length;
+    logic [5:0] snake_length;
 
     // Stores the current snake data and updates the snake position as needed
     // Output snake_data array for use by other blocks
     Snake_Register (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
                     .snake_enable(snake_enable), .snake_init(snake_init),
                     .dir(sticky_dir), .start_game(start_game), .grow(grow),
-                    .snake_data(snake_data), .snake_length(snake_length));
+                    .snake_data(snake_data), .snake_tiles(snake_tiles),
+                    .snake_length(snake_length));
     
     // Fruit
 
@@ -74,8 +72,9 @@ module Snake_Register (
     input logic clk, rst_n, game_clk,
     input logic [3:0] dir,
     input logic start_game, grow, snake_enable,
-    output snake_tile [15:0][15:0] snake_data,
-    output logic [7:0] snake_length;
+    output logic [63:0][2:0][2:0] snake_data,
+    output snake_style_t [7:0][7:0] snake_tiles,
+    output logic [5:0] snake_length;
 );
 
     snake_tile [15:0][15:0] next_snake_data;
@@ -106,24 +105,16 @@ module Snake_Register (
         // reset snake in the middle of the board
         if(~rst_n | snake_init) begin
             // Initial snake length is 4 tiles
-            snake_length <= 7'd4;
+            snake_length <= 5'd4;
 
             // Initial snake tiles = horizontal snake facing left
             foreach(snake_data[r,c]) begin
-                case ({r[3:0], c[3:0]})
-                    {4'd7, 4'd4}:  begin
+                case ({r[2:0], c[2:0]})
+                    {3'd3, 3'd2}:  begin
                         snake_data[r][c].valid <= 1'b1;
                         snake_data[r][c].tile_style <= LEFT_RIGHT;
                     end
-                    {4'd7, 4'd5}:  begin
-                        snake_data[r][c].valid <= 1'b1;
-                        snake_data[r][c].tile_style <= LEFT_RIGHT;
-                    end
-                    {4'd7, 4'd6}:  begin
-                        snake_data[r][c].valid <= 1'b1;
-                        snake_data[r][c].tile_style <= LEFT_RIGHT;
-                    end
-                    {4'd7, 4'd7}:  begin
+                    {3'd3, 3'd3}:  begin
                         snake_data[r][c].valid <= 1'b1;
                         snake_data[r][c].tile_style <= LEFT_HEAD;
                     end
@@ -141,7 +132,7 @@ module Snake_Register (
             if(snake_enable) begin
                 // Snake has collided with apple, replace head and increment length
                 if(grow) begin
-                    snake_length <= snake_length + 7'd1;
+                    snake_length <= snake_length + 5'd1;
 
                     // Update tiles
                 end
@@ -167,7 +158,7 @@ module Snake_Register (
 endmodule : Snake_Register
 
 // 8-bit PRNG
-// Generate "random" value between 0 -> 255 (256 tiles) to get next fruit pos
+// Generate "random" value between 0 -> 63 (64 tiles) to get next fruit pos
 module PRNG (
     input logic clk, rst_n,
     input logic 
