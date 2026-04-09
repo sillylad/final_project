@@ -43,15 +43,15 @@ module ChipInterface (
     // Module handling all the snake game logic and coloring
     Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
                 .start_game(start_game), .dir(dir),
-                .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA(VGA_B),
+                .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
                 .buzz(buzz));
 
 
     // generate test pattern
     logic [5:0] rgb;
 
-    vga_test_pattern vtp(.row(row), .col(col), .rgb(rgb));
-
+    // vga_test_pattern vtp(.row(row), .col(col), .rgb(rgb));
+    assign rgb = {VGA_R[1:0], VGA_G[1:0], VGA_B[1:0]};
     assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
     assign led = {R1, R0, G1, G0, B1, B0};
 

@@ -62,6 +62,7 @@ module Snake (
     // Audio
 
     // Color
+    Color_Snake cs (.snake_tiles(snake_tiles), .row(row), .col(col), .*);
 
     // Overall Game Handling FSM
 
@@ -73,9 +74,9 @@ endmodule : Snake
 module Snake_Register (
     input logic clk, rst_n, game_clk,
     input logic [3:0] dir,
-    input logic start_game, grow, snake_enable,
+    input logic start_game, grow, snake_enable, snake_init,
     output logic [63:0][2:0][2:0] snake_data, // shift register values
-    output snake_style_t [7:0][7:0] snake_tile_grid, // tile display values
+    output snake_style_t [7:0][7:0] snake_tiles, // tile display values
     output logic [5:0] snake_length
 );
 
@@ -102,71 +103,80 @@ module Snake_Register (
         end
     end
 
+    task initialize_snake();
+        // Initial snake length is 2 tiles
+        snake_length <= 6'd2;
+
+        // Initial snake shift register = horizontal snake facing left
+        for(int i = 0; i < 64; i++) begin
+            // set the initial head of the snake
+            if(i == 0) begin
+                snake_data[i] <= {3'd3, 3'd3};
+            end
+            // set the initial tail of the snake
+            else if(i == 1) begin
+                snake_data[i] <= {3'd3, 3'd2};
+            end
+            else begin
+                snake_data[i] <= '0;
+            end
+        end
+
+        for(int r = 0; r < 8; r++) begin
+            for(int c = 0; c < 8; c++) begin
+                if((r == 3) && (c == 3)) begin
+                    snake_tiles[r][c] <= LEFT_HEAD;
+                end
+                else if((r == 3) && (c == 2)) begin
+                    snake_tiles[r][c] <= RIGHT_TAIL;
+                end
+                else begin
+                    snake_tiles[r][c] <= EMPTY;
+                end
+            end
+        end
+    endtask
+
     // Update snake register
     always_ff @(posedge clk, negedge rst_n) begin
         // reset snake in the middle of the board
-        if(~rst_n | snake_init) begin
-            // Initial snake length is 2 tiles
-            snake_length <= 5'd2;
-
-            // Initial snake tiles = horizontal snake facing left
-            for(int i = 0; i < 64; i++) begin
-                // set the initial head of the snake
-                if(i == 0) begin
-                    snake_data[i] <= {3'd3, 3'd3};
-                end
-                // set the initial tail of the snake
-                else if(i == 1) begin
-                    snake_data[i] <= {3'd3, 3'd2};
-                end
-                else begin
-                    snake_data[i] <= '0;
-                end
-                snake_data
-            end
-            // foreach(snake_data[r,c]) begin
-            //     case ({r[2:0], c[2:0]})
-            //         {3'd3, 3'd2}:  begin
-            //             snake_data[r][c].valid <= 1'b1;
-            //             snake_data[r][c].tile_style <= LEFT_RIGHT;
-            //         end
-            //         {3'd3, 3'd3}:  begin
-            //             snake_data[r][c].valid <= 1'b1;
-            //             snake_data[r][c].tile_style <= LEFT_HEAD;
-            //         end
-            //         default: begin
-            //             snake_data[r][c].valid <= 1'b0;
-            //             snake_data[r][c].tile_style <= EMPTY;
-            //         end
-            //     endcase
-            // end
+        if(~rst_n) begin
+            initialize_snake();
         end
-        // Only update the snake on the game_clk so it doesn't zoom across
-        // the screen...
-        else if(game_clk) begin
-            // Only move the snake if a game has commenced
-            if(snake_enable) begin
-                // Snake has collided with apple, replace head and increment length
-                if(grow) begin
-                    snake_length <= snake_length + 5'd1;
-
-                    // Update tiles
-                end
-
-                // just keep moving
-                else begin
-                    unique case (decoded_dir):
-                        MOVE_UP:
-                        MOVE_RIGHT:
-                        MOVE_LEFT:
-                        MOVE_DOWN:
-                    endcase
-                end
-            end
+        else if(snake_init) begin
+            initialize_snake();
         end
         else begin
             snake_data <= snake_data;
+            snake_tiles <= snake_tiles;
         end
+        // end
+        // // Only update the snake on the game_clk so it doesn't zoom across
+        // // the screen...
+        // else if(game_clk) begin
+        //     // Only move the snake if a game has commenced
+        //     if(snake_enable) begin
+        //         // Snake has collided with apple, replace head and increment length
+        //         if(grow) begin
+        //             snake_length <= snake_length + 5'd1;
+
+        //             // Update tiles
+        //         end
+
+        //         // just keep moving
+        //         else begin
+        //             unique case (decoded_dir):
+        //                 MOVE_UP:
+        //                 MOVE_RIGHT:
+        //                 MOVE_LEFT:
+        //                 MOVE_DOWN:
+        //             endcase
+        //         end
+        //     end
+        // end
+        // else begin
+        //     snake_data <= snake_data;
+        // end
     end
 
     
@@ -175,9 +185,46 @@ endmodule : Snake_Register
 
 // 8-bit PRNG
 // Generate "random" value between 0 -> 63 (64 tiles) to get next fruit pos
-module PRNG (
-    input logic clk, rst_n,
-    input logic 
-);
+// module PRNG (
+//     input logic clk, rst_n,
+//     input logic 
+// );
 
-endmodule : PRNG
+// endmodule : PRNG
+
+
+module Color_Snake(
+    input snake_style_t [7:0][7:0] snake_tiles,
+    input logic [9:0] row, col,
+    output logic [3:0] VGA_R, VGA_G, VGA_B
+);
+    logic [9:0] game_row, game_col;
+    logic vga_in_grid;
+
+    assign vga_in_grid = (row >= 10'd44) & (row <= 10'd556) & (col >= 10'd144) & (col <= 10'd656);
+
+    // subtract grid origin offsets
+    assign game_row = row - 10'd44;
+    assign game_col = col - 10'd144;
+
+    // get which tile the VGA row and col are on (integer div by pixel size=64 since 8x8 grid)
+    logic [2:0] tile_row, tile_col;
+    assign tile_row = game_row >> 10'd6; // 0 -> 7
+    assign tile_col = game_col >> 10'd6;
+
+    always_comb begin
+        if(vga_in_grid & ((snake_tiles[tile_row][tile_col]) != EMPTY)) begin
+            VGA_G = '1;
+            VGA_R = '0;
+            VGA_B = '0;
+        end
+        // game board outline
+        else if((game_row == 10'd0) | (game_row == 10'd512) | (game_col == 10'd0) | (game_col == 10'd512)) begin
+            {VGA_R, VGA_G, VGA_B} = '1;
+        end
+        else begin
+            {VGA_R, VGA_G, VGA_B} = '0;
+        end
+    end
+
+endmodule : Color_Snake
