@@ -35,6 +35,7 @@ module ChipInterface (
     logic blank;
     logic game_clk;
     logic buzz;
+    logic [1:0] curr_dir;
 
     // Drive VGA timing signals
     vga vga_800_600 (.clk(clk_40), .rst_n(rst_n), .HS(VGA_HS), .VS(VGA_VS),
@@ -44,7 +45,7 @@ module ChipInterface (
     Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
                 .start_game(start_game), .dir(dir),
                 .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
-                .buzz(buzz));
+                .buzz(buzz), .curr_dir(curr_dir));
 
 
     // generate test pattern
@@ -53,7 +54,17 @@ module ChipInterface (
     // vga_test_pattern vtp(.row(row), .col(col), .rgb(rgb));
     assign rgb = {VGA_R[1:0], VGA_G[1:0], VGA_B[1:0]};
     assign {R1, R0, G1, G0, B1, B0} = (~blank) ? rgb : '0;
-    assign led = {R1, R0, G1, G0, B1, B0};
+    
+    // assign led = {R1, R0, G1, G0, B1, B0};
+    // assign led = curr_dir;
+
+    // in your top level, to verify game_clk is free-running
+    logic [5:0] frame_count;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) frame_count <= '0;
+        else if(game_clk) frame_count <= frame_count + 1;
+    end
+    assign led = frame_count; // should visibly count up
 
 endmodule : ChipInterface
 
