@@ -34,6 +34,7 @@ module ChipInterface (
     logic [7:0] VGA_R, VGA_G, VGA_B;
     logic blank;
     logic game_clk;
+    logic buzz;
 
     // Drive VGA timing signals
     vga vga_800_600 (.clk(clk_40), .rst_n(rst_n), .HS(VGA_HS), .VS(VGA_VS),

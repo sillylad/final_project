@@ -49,7 +49,7 @@ module Snake (
 
     // Stores the current snake data and updates the snake position as needed
     // Output snake_data array for use by other blocks
-    Snake_Register (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
+    Snake_Register sreg (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
                     .snake_enable(snake_enable), .snake_init(snake_init),
                     .dir(sticky_dir), .start_game(start_game), .grow(grow),
                     .snake_data(snake_data), .snake_tiles(snake_tiles),
@@ -68,16 +68,18 @@ module Snake (
 endmodule : Snake
 
 
+// Update the snake shift register (location of the snake) and 8x8 grid of 
+// snake tiles
 module Snake_Register (
     input logic clk, rst_n, game_clk,
     input logic [3:0] dir,
     input logic start_game, grow, snake_enable,
-    output logic [63:0][2:0][2:0] snake_data,
-    output snake_style_t [7:0][7:0] snake_tiles,
-    output logic [5:0] snake_length;
+    output logic [63:0][2:0][2:0] snake_data, // shift register values
+    output snake_style_t [7:0][7:0] snake_tile_grid, // tile display values
+    output logic [5:0] snake_length
 );
 
-    snake_tile [15:0][15:0] next_snake_data;
+    // snake_tile [15:0][15:0] next_snake_data;
     snake_move decoded_dir;
 
     // Have a button priority for simplicity, in case multiple are pressed
@@ -104,26 +106,40 @@ module Snake_Register (
     always_ff @(posedge clk, negedge rst_n) begin
         // reset snake in the middle of the board
         if(~rst_n | snake_init) begin
-            // Initial snake length is 4 tiles
-            snake_length <= 5'd4;
+            // Initial snake length is 2 tiles
+            snake_length <= 5'd2;
 
             // Initial snake tiles = horizontal snake facing left
-            foreach(snake_data[r,c]) begin
-                case ({r[2:0], c[2:0]})
-                    {3'd3, 3'd2}:  begin
-                        snake_data[r][c].valid <= 1'b1;
-                        snake_data[r][c].tile_style <= LEFT_RIGHT;
-                    end
-                    {3'd3, 3'd3}:  begin
-                        snake_data[r][c].valid <= 1'b1;
-                        snake_data[r][c].tile_style <= LEFT_HEAD;
-                    end
-                    default: begin
-                        snake_data[r][c].valid <= 1'b0;
-                        snake_data[r][c].tile_style <= EMPTY;
-                    end
-                endcase
+            for(int i = 0; i < 64; i++) begin
+                // set the initial head of the snake
+                if(i == 0) begin
+                    snake_data[i] <= {3'd3, 3'd3};
+                end
+                // set the initial tail of the snake
+                else if(i == 1) begin
+                    snake_data[i] <= {3'd3, 3'd2};
+                end
+                else begin
+                    snake_data[i] <= '0;
+                end
+                snake_data
             end
+            // foreach(snake_data[r,c]) begin
+            //     case ({r[2:0], c[2:0]})
+            //         {3'd3, 3'd2}:  begin
+            //             snake_data[r][c].valid <= 1'b1;
+            //             snake_data[r][c].tile_style <= LEFT_RIGHT;
+            //         end
+            //         {3'd3, 3'd3}:  begin
+            //             snake_data[r][c].valid <= 1'b1;
+            //             snake_data[r][c].tile_style <= LEFT_HEAD;
+            //         end
+            //         default: begin
+            //             snake_data[r][c].valid <= 1'b0;
+            //             snake_data[r][c].tile_style <= EMPTY;
+            //         end
+            //     endcase
+            // end
         end
         // Only update the snake on the game_clk so it doesn't zoom across
         // the screen...
