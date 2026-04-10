@@ -48,12 +48,13 @@ module Snake (
 
     // 64-element shift register for snake motion tracking
     logic [63:0][5:0] snake_data;
+    logic [63:0] snake_valid;
     logic snake_init, grow, snake_enable;
     logic [5:0] snake_length;
 
     assign snake_init = 1'b0;
     assign snake_enable = 1'b1;
-    assign grow = 1'b0;
+    assign grow = (head_pos == fruit_pos);
     // Stores the current snake data and updates the snake position as needed
     // Output snake_data array for use by other blocks
     Snake_Register sreg (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
@@ -62,17 +63,24 @@ module Snake (
                     .snake_data(snake_data),
                     .snake_length(snake_length), .curr_dir(curr_dir));
 
-    assign head_pos = snake_data[0];
+    assign head_pos = snake_data[0]; // pull out of snake_register for debug
     
     // Fruit
+    logic [5:0] fruit_pos;
+    PRNG fruit_gen (.clk(clk), .game_clk(game_clk), .rst_n(rst_n),
+                    .snake_data(snake_data), .snake_valid(snake_valid),
+                    .grow(grow), .fruit_pos(fruit_pos));
 
     // Scoring
 
     // Audio
 
     // Color
-    Color_Gameboard cgb (.snake_data(snake_data), .snake_length(snake_length),
-                    .row(row), .col(col), .is_snake(is_snake), .*);
+    Color_Gameboard cgb(.snake_data(snake_data),
+                        .snake_length(snake_length),
+                        .snake_valid(snake_valid),
+                        .fruit_pos(fruit_pos),
+                        .row(row), .col(col), .is_snake(is_snake), .*);
 
     // Overall Game Handling FSM
 
@@ -146,42 +154,16 @@ module Snake_Register (
         end
     endtask
 
-    task move_snake_up();
-        // shift entire register over by 1 tile
-        for(int i = 63; i > 0; i--) begin
-            snake_data[i] <= snake_data[i-1];
-        end
-        // add new head one tile above old head
-        snake_data[0] <= {snake_data[0][5:3] - 3'd1, snake_data[0][2:0]};
-    endtask
+    logic [5:0] new_head;
 
-    task move_snake_right();
-        // shift entire register over by 1 tile
-        for(int i = 63; i > 0; i--) begin
-            snake_data[i] <= snake_data[i-1];
-        end
-        // add new head one tile to the right of old head
-        snake_data[0] <= {snake_data[0][5:3], snake_data[0][2:0] + 3'd1};
-
-    endtask
-
-    task move_snake_left();
-            // shift entire register over by 1 tile
-        for(int i = 63; i > 0; i--) begin
-            snake_data[i] <= snake_data[i-1];
-        end
-        // add new head one tile left of old head
-        snake_data[0] <= {snake_data[0][5:3], snake_data[0][2:0] - 3'd1};
-    endtask
-
-    task move_snake_down();
-            // shift entire register over by 1 tile
-        for(int i = 63; i > 0; i--) begin
-            snake_data[i] <= snake_data[i-1];
-        end
-        // add new head one tile below old head
-        snake_data[0] <= {snake_data[0][5:3] + 3'd1, snake_data[0][2:0]};
-    endtask
+    always_comb begin
+        unique case(curr_dir)
+            MOVE_UP: new_head = {snake_data[0][5:3] - 3'd1, snake_data[0][2:0]};
+            MOVE_RIGHT: new_head = {snake_data[0][5:3], snake_data[0][2:0] + 3'd1};
+            MOVE_LEFT: new_head = {snake_data[0][5:3], snake_data[0][2:0] - 3'd1};
+            MOVE_DOWN: new_head = {snake_data[0][5:3] + 3'd1, snake_data[0][2:0]};
+        endcase
+    end
 
     // Update snake register
     always_ff @(posedge clk, negedge rst_n) begin
@@ -199,18 +181,15 @@ module Snake_Register (
                 // Snake has collided with apple, replace head and increment length
                 if(grow) begin
                     snake_length <= snake_length + 5'd1;
-
                     // Update tiles
                 end
 
                 // Snake keeps moving
                 else begin
-                    unique case (curr_dir)
-                        MOVE_UP: move_snake_up();
-                        MOVE_RIGHT: move_snake_right();
-                        MOVE_LEFT: move_snake_left();
-                        MOVE_DOWN: move_snake_down();
-                    endcase
+                    for(int i = 63; i > 0; i--) begin
+                        snake_data[i] <= snake_data[i-1];
+                    end
+                    snake_data[0] <= new_head;
                 end
             end
         end
@@ -223,23 +202,105 @@ module Snake_Register (
 
 endmodule : Snake_Register
 
-// 8-bit PRNG
+// 6-bit PRNG
 // Generate "random" value between 0 -> 63 (64 tiles) to get next fruit pos
-// module PRNG (
-//     input logic clk, rst_n,
-//     input logic 
-// );
+module PRNG (
+    input logic clk, rst_n,
+    input logic game_clk,
+    input logic [63:0][5:0] snake_data,
+    input logic [63:0] snake_valid,
+    input logic grow,
+    output logic [5:0] fruit_pos
+);
 
-// endmodule : PRNG
+    logic valid_fruit, shift, get_new_pos;
+    logic [63:0] fruit_on_snake;
+
+    // spin lfsr on faster clock so it can resolve in time
+    logic [5:0] seed, lfsr_out;
+    assign seed = 6'b1;
+    LFSR_6_BIT lfsr(.clk(clk), .rst_n(rst_n), .shift(shift), .seed(seed),
+                    .lfsr_out(lfsr_out));
+
+    assign shift = ~valid_fruit & get_new_pos;
+
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            get_new_pos <= 1'b0;
+        end
+        // trigger new fruit position search
+        else if(grow) begin
+            get_new_pos <= 1'b1;
+        end
+        // stop searching when you found a valid fruit
+        else if(valid_fruit & game_clk & get_new_pos) begin
+            get_new_pos <= 1'b0;
+        end
+    end
+
+    // update visible fruit_pos only when a valid tile has been found (max 63 clocks)
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            fruit_pos <= {3'd3, 3'd6};
+        end
+        // update visible fruit on game clock only (high for 1 clock only)
+        else if(game_clk & valid_fruit & get_new_pos) begin
+            fruit_pos <= lfsr_out;
+        end
+    end
+
+    // check if the proposed fruit tile is on top of the snake
+    genvar i;
+    generate
+        for(i = 0; i < 64; i++) begin
+            assign fruit_on_snake[i] =  (snake_data[i][5:3] == lfsr_out[5:3]) & 
+                                        (snake_data[i][2:0] == lfsr_out[2:0]) & 
+                                        (snake_valid[i]);
+        end
+    endgenerate
+
+    // conditions for valid fruit: not where the snake is, and in a different
+    // place than the previous fruit (these conditions should overlap)
+    assign valid_fruit = ~(|fruit_on_snake) & (lfsr_out != fruit_pos);
+
+endmodule : PRNG
+
+module LFSR_6_BIT(
+    input logic clk, rst_n, shift,
+    input logic [5:0] seed,
+    output logic [5:0] lfsr_out
+);
+
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            // reset lfsr to seed, but make sure seed isn't 0 else lfsr will lock
+            lfsr_out <= (seed == '0) ? 6'b1 : seed;
+        end
+        else if(shift) begin
+            lfsr_out[5] <= lfsr_out[0];
+            lfsr_out[4] <= lfsr_out[5] ^ lfsr_out[0];
+            lfsr_out[3] <= lfsr_out[4];
+            lfsr_out[2] <= lfsr_out[3] ^ lfsr_out[0];
+            lfsr_out[1] <= lfsr_out[2] ^ lfsr_out[0];
+            lfsr_out[0] <= lfsr_out[1];
+        end
+        else begin
+            lfsr_out <= lfsr_out;
+        end
+    end
+
+endmodule : LFSR_6_BIT
 
 
 // Handle all the coloring stuff for the gameboard (snake, fruit)
 module Color_Gameboard(
     input logic [63:0][5:0] snake_data,
     input logic [5:0] snake_length,
+    input logic [5:0] fruit_pos,
     input logic [9:0] row, col,
     output logic [3:0] VGA_R, VGA_G, VGA_B,
-    output logic is_snake
+    output logic is_snake,
+    output logic [63:0] snake_valid
 );
     logic [9:0] game_row, game_col;
     logic vga_in_grid;
@@ -260,7 +321,7 @@ module Color_Gameboard(
     logic [63:0] in_snake;
     
     // thermometer encoding of snake_length to get a mask for the snake_data
-    logic [63:0] snake_valid;
+    // logic [63:0] snake_valid;
     logic [63:0] ones_mask;
 
     assign ones_mask = '1;
@@ -277,6 +338,9 @@ module Color_Gameboard(
 
     assign display_snake = |in_snake;
 
+    logic display_fruit;
+    assign display_fruit = (tile_row == fruit_pos[5:3]) && (tile_col == fruit_pos[2:0]);
+
     always_comb begin
         // default black background
         {VGA_R, VGA_G, VGA_B} = '0;
@@ -290,6 +354,12 @@ module Color_Gameboard(
             if(display_snake) begin
                 VGA_R = '0;
                 VGA_G = '1;
+                VGA_B = '0;
+            end
+
+            else if(display_fruit) begin
+                VGA_R = '1;
+                VGA_G = '0;
                 VGA_B = '0;
             end
         end

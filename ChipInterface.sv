@@ -53,14 +53,14 @@ module ChipInterface (
             frame_cnt <= '0;
         end
         else if(clk_60HZ) begin
-            frame_cnt <= (frame_cnt == 6'd29) ? '0 : frame_cnt + 1'b1;
+            frame_cnt <= (frame_cnt == 5'd29) ? '0 : frame_cnt + 1'b1;
         end
         else begin
             frame_cnt <= frame_cnt;
         end
     end
 
-    assign game_clk = clk_60HZ & (frame_cnt == 6'd0);
+    assign game_clk = clk_60HZ & (frame_cnt == 5'd0);
 
     // Module handling all the snake game logic and coloring
     Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
@@ -86,7 +86,7 @@ module ChipInterface (
     // end
     // assign led = frame_count;
 
-    assign led = {is_snake, 4'b0, head_pos[5:3]};
+    assign led = {is_snake, 4'b0, head_pos[2:0]};
 
 endmodule : ChipInterface
 
