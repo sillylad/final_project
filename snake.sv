@@ -71,7 +71,7 @@ module Snake (
     // Audio
 
     // Color
-    Color_Snake cs (.snake_data(snake_data), .snake_length(snake_length),
+    Color_Gameboard cgb (.snake_data(snake_data), .snake_length(snake_length),
                     .row(row), .col(col), .is_snake(is_snake), .*);
 
     // Overall Game Handling FSM
@@ -144,23 +144,6 @@ module Snake_Register (
                 snake_data[i] <= '0;
             end
         end
-
-        // for(int r = 0; r < 8; r++) begin
-        //     for(int c = 0; c < 8; c++) begin
-        //         if((r == 3) && (c == 3)) begin
-        //             snake_tiles[r][c] <= LEFT_HEAD;
-        //         end
-        //         else if((r == 3) && (c == 2)) begin
-        //             snake_tiles[r][c] <= LEFT_RIGHT;
-        //         end
-        //         else if((r == 3) && (c == 1)) begin
-        //             snake_tiles[r][c] <= RIGHT_TAIL;
-        //         end
-        //         else begin
-        //             snake_tiles[r][c] <= EMPTY;
-        //         end
-        //     end
-        // end
     endtask
 
     task move_snake_up();
@@ -168,22 +151,8 @@ module Snake_Register (
         for(int i = 63; i > 0; i--) begin
             snake_data[i] <= snake_data[i-1];
         end
-
         // add new head one tile above old head
         snake_data[0] <= {snake_data[0][5:3] - 3'd1, snake_data[0][2:0]};
-
-        // // invalidate previous tail tile
-        // snake_tiles[snake_data[snake_length - 1][5:3]][snake_data[snake_length-1][2:0]] <= EMPTY;
-
-        // // TODO: set new tail tile to the correct piece, dummy left_tail for now
-        // snake_tiles[snake_data[snake_length - 2][5:3]][snake_data[snake_length-2][2:0]] <= LEFT_TAIL;
-
-        // // TODO: set new neck piece to the correct piece, dummy left_right for now
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0]] <= LEFT_RIGHT;
-
-        // // set new head tile one above previous head
-        // snake_tiles[snake_data[0][5:3] - 3'd1][snake_data[0][2:0]] <= UP_HEAD;
-
     endtask
 
     task move_snake_right();
@@ -191,21 +160,9 @@ module Snake_Register (
         for(int i = 63; i > 0; i--) begin
             snake_data[i] <= snake_data[i-1];
         end
-
         // add new head one tile to the right of old head
         snake_data[0] <= {snake_data[0][5:3], snake_data[0][2:0] + 3'd1};
 
-        // // invalidate previous tail tile
-        // snake_tiles[snake_data[snake_length - 1][5:3]][snake_data[snake_length-1][2:0]] <= EMPTY;
-
-        // // TODO: set new tail tile to the correct piece, dummy left_tail for now
-        // snake_tiles[snake_data[snake_length - 2][5:3]][snake_data[snake_length-2][2:0]] <= LEFT_TAIL;
-
-        // // TODO: set new neck piece to the correct piece, dummy left_right for now
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0]] <= LEFT_RIGHT;
-
-        // // set new head tile one to the right of previous head
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0] + 3'd1] <= RIGHT_HEAD;
     endtask
 
     task move_snake_left();
@@ -213,21 +170,8 @@ module Snake_Register (
         for(int i = 63; i > 0; i--) begin
             snake_data[i] <= snake_data[i-1];
         end
-
         // add new head one tile left of old head
         snake_data[0] <= {snake_data[0][5:3], snake_data[0][2:0] - 3'd1};
-
-        // // invalidate previous tail tile
-        // snake_tiles[snake_data[snake_length - 1][5:3]][snake_data[snake_length-1][2:0]] <= EMPTY;
-
-        // // TODO: set new tail tile to the correct piece, dummy left_tail for now
-        // snake_tiles[snake_data[snake_length - 2][5:3]][snake_data[snake_length-2][2:0]] <= LEFT_TAIL;
-
-        // // TODO: set new neck piece to the correct piece, dummy left_right for now
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0]] <= LEFT_RIGHT;
-
-        // // set new head tile one to the left of previous head
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0] - 3'd1] <= LEFT_HEAD;
     endtask
 
     task move_snake_down();
@@ -235,21 +179,8 @@ module Snake_Register (
         for(int i = 63; i > 0; i--) begin
             snake_data[i] <= snake_data[i-1];
         end
-
         // add new head one tile below old head
         snake_data[0] <= {snake_data[0][5:3] + 3'd1, snake_data[0][2:0]};
-
-        // // invalidate previous tail tile
-        // snake_tiles[snake_data[snake_length - 1][5:3]][snake_data[snake_length-1][2:0]] <= EMPTY;
-
-        // // TODO: set new tail tile to the correct piece, dummy left_tail for now
-        // snake_tiles[snake_data[snake_length - 2][5:3]][snake_data[snake_length-2][2:0]] <= LEFT_TAIL;
-
-        // // TODO: set new neck piece to the correct piece, dummy left_right for now
-        // snake_tiles[snake_data[0][5:3]][snake_data[0][2:0]] <= LEFT_RIGHT;
-
-        // // set new head tile one below previous head
-        // snake_tiles[snake_data[0][5:3] + 3'd1][snake_data[0][2:0]] <= DOWN_HEAD;
     endtask
 
     // Update snake register
@@ -261,16 +192,12 @@ module Snake_Register (
         else if(snake_init) begin
             initialize_snake();
         end
-        // Only update the snake on the game_clk so it doesn't zoom across
-        // the screen...
         // else begin
         else if(game_clk) begin
             // Only move the snake if a game has commenced
             if(snake_enable) begin
-            // if(1'b1) begin
                 // Snake has collided with apple, replace head and increment length
                 if(grow) begin
-                // if(1'b0) begin
                     snake_length <= snake_length + 5'd1;
 
                     // Update tiles
@@ -289,7 +216,6 @@ module Snake_Register (
         end
         else begin
             snake_data <= snake_data;
-            // snake_tiles <= snake_tiles;
             snake_length <= snake_length;
         end
     end
@@ -307,7 +233,8 @@ endmodule : Snake_Register
 // endmodule : PRNG
 
 
-module Color_Snake(
+// Handle all the coloring stuff for the gameboard (snake, fruit)
+module Color_Gameboard(
     input logic [63:0][5:0] snake_data,
     input logic [5:0] snake_length,
     input logic [9:0] row, col,
@@ -351,15 +278,20 @@ module Color_Snake(
     assign display_snake = |in_snake;
 
     always_comb begin
-        // game board outline
+        // default black background
+        {VGA_R, VGA_G, VGA_B} = '0;
+        
+        // white game board outline
         if((game_row == 10'd0) | (game_row == 10'd512) | (game_col == 10'd0) | (game_col == 10'd512)) begin
             {VGA_R, VGA_G, VGA_B} = '1;
         end
-        // just do green for now
-        else if(display_snake) begin
-            VGA_R = '0;
-            VGA_G = '1;
-            VGA_B = '0;
+        else if(vga_in_grid) begin
+            // just green snake for now
+            if(display_snake) begin
+                VGA_R = '0;
+                VGA_G = '1;
+                VGA_B = '0;
+            end
         end
         // black background
         else begin
@@ -367,4 +299,4 @@ module Color_Snake(
         end
     end
 
-endmodule : Color_Snake
+endmodule : Color_Gameboard
