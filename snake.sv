@@ -51,17 +51,18 @@ module Snake (
     logic [63:0] snake_valid;
     logic snake_init, grow, snake_enable;
     logic [5:0] snake_length;
+    logic [5:0] new_head;
 
     assign snake_init = 1'b0;
     assign snake_enable = 1'b1;
-    assign grow = (head_pos == fruit_pos);
+    assign grow = (new_head == fruit_pos);
     // Stores the current snake data and updates the snake position as needed
     // Output snake_data array for use by other blocks
     Snake_Register sreg (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
                     .snake_enable(snake_enable), .snake_init(snake_init),
                     .dir(sticky_dir), .start_game(start_game), .grow(grow),
-                    .snake_data(snake_data),
-                    .snake_length(snake_length), .curr_dir(curr_dir));
+                    .snake_data(snake_data), .snake_length(snake_length),
+                    .new_head(new_head), .curr_dir(curr_dir));
 
     assign head_pos = snake_data[0]; // pull out of snake_register for debug
     
@@ -95,6 +96,7 @@ module Snake_Register (
     input logic start_game, grow, snake_enable, snake_init,
     output logic [63:0][5:0] snake_data, // shift register values
     output logic [5:0] snake_length,
+    output logic [5:0] new_head,
     output snake_move curr_dir
 );
 
@@ -182,8 +184,11 @@ module Snake_Register (
                 if(grow) begin
                     snake_length <= snake_length + 5'd1;
                     // Update tiles
+                    for(int i = 63; i > 0; i--) begin
+                        snake_data[i] <= snake_data[i-1];
+                    end
+                    snake_data[0] <= new_head;
                 end
-
                 // Snake keeps moving
                 else begin
                     for(int i = 63; i > 0; i--) begin
