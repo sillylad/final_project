@@ -38,7 +38,7 @@ module ChipInterface (
     logic [1:0] curr_dir;
     logic [5:0] snake_length;
     logic [5:0] head_pos;
-    logic is_snake;
+    logic is_snake, is_snake_sticky;
 
     // Drive VGA timing signals
     vga vga_800_600 (.clk(clk_40), .rst_n(rst_n), .HS(VGA_HS), .VS(VGA_VS),
@@ -69,6 +69,14 @@ module ChipInterface (
                 .buzz(buzz), .curr_dir(curr_dir), .snake_length(snake_length),
                 .head_pos(head_pos), .is_snake(is_snake));
 
+    always_ff @(posedge clk_40, negedge rst_n) begin
+        if(~rst_n) begin
+            is_snake_sticky <= 1'b0;
+        end
+        else begin
+            is_snake_sticky <= (is_snake_sticky) ? 1'b1 : is_snake;
+        end
+    end
 
     // generate test pattern
     logic [5:0] rgb;
@@ -87,7 +95,7 @@ module ChipInterface (
     // end
     // assign led = frame_count;
 
-    assign led = {is_snake, 4'b0, head_pos[5:3]};
+    assign led = {is_snake_sticky, 4'b0, head_pos[5:3]};
 
 endmodule : ChipInterface
 

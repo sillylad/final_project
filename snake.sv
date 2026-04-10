@@ -329,9 +329,9 @@ module Color_Snake(
     assign tile_col = game_col >> 10'd6;
 
     logic display_snake;
-    logic [63:0] in_snake;
     assign is_snake = display_snake;
-
+    logic [63:0] in_snake;
+    
     // thermometer encoding of snake_length to get a mask for the snake_data
     logic [63:0] snake_valid;
     logic [63:0] ones_mask;
@@ -344,7 +344,7 @@ module Color_Snake(
     genvar i;
     generate 
         for(i = 0; i < 64; i++) begin
-            assign in_snake = (snake_data[i][5:3] == tile_row) & (snake_data[i][2:0] == tile_col) & (snake_valid[i]);
+            assign in_snake[i] = (snake_data[i][5:3] == tile_row) & (snake_data[i][2:0] == tile_col) & (snake_valid[i]);
         end
     endgenerate
 
