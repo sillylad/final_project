@@ -33,19 +33,41 @@ module ChipInterface (
     logic [9:0] row;
     logic [7:0] VGA_R, VGA_G, VGA_B;
     logic blank;
-    logic game_clk;
+    logic game_clk, clk_60HZ;
     logic buzz;
     logic [1:0] curr_dir;
+    logic [5:0] snake_length;
+    logic [5:0] head_pos;
+    logic is_snake;
 
     // Drive VGA timing signals
     vga vga_800_600 (.clk(clk_40), .rst_n(rst_n), .HS(VGA_HS), .VS(VGA_VS),
-                    .blank(blank), .row(row), .col(col), .game_clk(game_clk));
+                    .blank(blank), .row(row), .col(col), .game_clk(clk_60HZ));
+
+                
+    // divide 60hz game clock so it's not so ZOOMIN'
+    // every 30 frames -> 2 hz refresh rate
+    logic [4:0] frame_cnt;
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            frame_cnt <= '0;
+        end
+        else if(clk_60HZ) begin
+            frame_cnt <= (frame_cnt == 6'd29) ? '0 : frame_cnt + 1'b1;
+        end
+        else begin
+            frame_cnt <= frame_cnt;
+        end
+    end
+
+    assign game_clk = clk_60HZ & (frame_cnt == 6'd0);
 
     // Module handling all the snake game logic and coloring
     Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
                 .start_game(start_game), .dir(dir),
                 .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
-                .buzz(buzz), .curr_dir(curr_dir));
+                .buzz(buzz), .curr_dir(curr_dir), .snake_length(snake_length),
+                .head_pos(head_pos), .is_snake(is_snake));
 
 
     // generate test pattern
@@ -58,13 +80,14 @@ module ChipInterface (
     // assign led = {R1, R0, G1, G0, B1, B0};
     // assign led = curr_dir;
 
-    // in your top level, to verify game_clk is free-running
-    logic [5:0] frame_count;
-    always_ff @(posedge clk, negedge rst_n) begin
-        if(~rst_n) frame_count <= '0;
-        else if(game_clk) frame_count <= frame_count + 1;
-    end
-    assign led = frame_count; // should visibly count up
+    // logic [5:0] frame_count;
+    // always_ff @(posedge clk, negedge rst_n) begin
+    //     if(~rst_n) frame_count <= '0;
+    //     else if(game_clk) frame_count <= frame_count + 1;
+    // end
+    // assign led = frame_count;
+
+    assign led = {is_snake, 4'b0, head_pos[5:3]};
 
 endmodule : ChipInterface
 

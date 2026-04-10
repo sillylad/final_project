@@ -20,7 +20,10 @@ module Snake (
     input logic [9:0] row, col,
     output logic [3:0] VGA_R, VGA_G, VGA_B,
     output logic buzz,
-    output snake_move curr_dir
+    output snake_move curr_dir,
+    output logic [5:0] snake_length,
+    output logic [5:0] head_pos,
+    output logic is_snake
 );
 
     // snake is moving always so dir should be sticky
@@ -40,8 +43,8 @@ module Snake (
             end
         end
     end
-    // 8x8 array of snake_tiles for fruit and display logic
-    snake_style_t [63:0] snake_tiles;
+    // // 8x8 array of snake_tiles for fruit and display logic
+    // snake_style_t [63:0] snake_tiles;
 
     // 64-element shift register for snake motion tracking
     logic [63:0][5:0] snake_data;
@@ -56,8 +59,10 @@ module Snake (
     Snake_Register sreg (.clk(clk), .rst_n(rst_n), .game_clk(game_clk),
                     .snake_enable(snake_enable), .snake_init(snake_init),
                     .dir(sticky_dir), .start_game(start_game), .grow(grow),
-                    .snake_data(snake_data), .snake_tiles(snake_tiles),
+                    .snake_data(snake_data),
                     .snake_length(snake_length), .curr_dir(curr_dir));
+
+    assign head_pos = snake_data[0];
     
     // Fruit
 
@@ -66,7 +71,8 @@ module Snake (
     // Audio
 
     // Color
-    Color_Snake cs (.snake_tiles(snake_tiles), .row(row), .col(col), .*);
+    Color_Snake cs (.snake_data(snake_data), .snake_length(snake_length),
+                    .row(row), .col(col), .is_snake(is_snake), .*);
 
     // Overall Game Handling FSM
 
@@ -80,7 +86,6 @@ module Snake_Register (
     input logic [3:0] dir,
     input logic start_game, grow, snake_enable, snake_init,
     output logic [63:0][5:0] snake_data, // shift register values
-    output snake_style_t [63:0] snake_tiles, // tile display values
     output logic [5:0] snake_length,
     output snake_move curr_dir
 );
@@ -288,24 +293,6 @@ module Snake_Register (
             snake_length <= snake_length;
         end
     end
-
-    // update snake_tiles
-    always_comb begin
-        // default everything to EMPTY
-            for(int c = 0; c < 8; c++)
-                snake_tiles[i] = EMPTY;
-        
-        for(int i = 0; i < 64; i++) begin
-            if(i < snake_length) begin
-                if(i == 0)
-                    snake_tiles[snake_data[i][5:3]][snake_data[i][2:0]] = RIGHT_HEAD; // TODO
-                else if(i == snake_length - 1)
-                    snake_tiles[snake_data[i][5:3]][snake_data[i][2:0]] = LEFT_TAIL;  // TODO
-                else
-                    snake_tiles[snake_data[i][5:3]][snake_data[i][2:0]] = LEFT_RIGHT; // TODO
-            end
-        end
-    end
     
 
 endmodule : Snake_Register
@@ -321,9 +308,11 @@ endmodule : Snake_Register
 
 
 module Color_Snake(
-    input snake_style_t [63:0] snake_tiles,
+    input logic [63:0][5:0] snake_data,
+    input logic [5:0] snake_length,
     input logic [9:0] row, col,
-    output logic [3:0] VGA_R, VGA_G, VGA_B
+    output logic [3:0] VGA_R, VGA_G, VGA_B,
+    output logic is_snake
 );
     logic [9:0] game_row, game_col;
     logic vga_in_grid;
@@ -339,26 +328,40 @@ module Color_Snake(
     assign tile_row = game_row >> 10'd6; // 0 -> 7
     assign tile_col = game_col >> 10'd6;
 
+    logic display_snake;
+    logic [63:0] in_snake;
+    assign is_snake = display_snake;
+
+    // thermometer encoding of snake_length to get a mask for the snake_data
+    logic [63:0] snake_valid;
+    logic [63:0] ones_mask;
+
+    assign ones_mask = '1;
+    assign snake_valid = ones_mask >> (7'd64 - {1'b0, snake_length});
+
+
+    // figure out if we're supposed to display some snek or not
+    genvar i;
+    generate 
+        for(i = 0; i < 64; i++) begin
+            assign in_snake = (snake_data[i][5:3] == tile_row) & (snake_data[i][2:0] == tile_col) & (snake_valid[i]);
+        end
+    endgenerate
+
+    assign display_snake = |in_snake;
+
     always_comb begin
-        if (vga_in_grid & ((snake_tiles[tile_row][tile_col] == DOWN_HEAD) | (snake_tiles[tile_row][tile_col] == LEFT_HEAD) | (snake_tiles[tile_row][tile_col] == RIGHT_HEAD) | (snake_tiles[tile_row][tile_col] == UP_HEAD))) begin
-            VGA_G = '0;
-            VGA_R = '1;
-            VGA_B = '0;
-        end
-        else if (vga_in_grid & ((snake_tiles[tile_row][tile_col] == DOWN_TAIL) | (snake_tiles[tile_row][tile_col] == LEFT_TAIL) | (snake_tiles[tile_row][tile_col] == RIGHT_TAIL) | (snake_tiles[tile_row][tile_col] == UP_TAIL))) begin
-            VGA_G = '0;
-            VGA_R = '0;
-            VGA_B = '1;
-        end
-        else if(vga_in_grid & ((snake_tiles[tile_row][tile_col]) != EMPTY)) begin
-            VGA_G = '1;
-            VGA_R = '0;
-            VGA_B = '0;
-        end
         // game board outline
-        else if((game_row == 10'd0) | (game_row == 10'd512) | (game_col == 10'd0) | (game_col == 10'd512)) begin
+        if((game_row == 10'd0) | (game_row == 10'd512) | (game_col == 10'd0) | (game_col == 10'd512)) begin
             {VGA_R, VGA_G, VGA_B} = '1;
         end
+        // just do green for now
+        else if(display_snake) begin
+            VGA_R = '0;
+            VGA_G = '1;
+            VGA_B = '0;
+        end
+        // black background
         else begin
             {VGA_R, VGA_G, VGA_B} = '0;
         end
