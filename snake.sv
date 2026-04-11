@@ -43,8 +43,6 @@ module Snake (
             end
         end
     end
-    // // 8x8 array of snake_tiles for fruit and display logic
-    // snake_style_t [63:0] snake_tiles;
 
     // 64-element shift register for snake motion tracking
     logic [63:0][5:0] snake_data;
@@ -82,6 +80,7 @@ module Snake (
                     .grow(grow), .fruit_pos(fruit_pos));
 
     // Scoring
+    logic [5:0] high_score, curr_score;
 
     // Audio
 
