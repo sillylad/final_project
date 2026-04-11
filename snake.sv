@@ -54,7 +54,16 @@ module Snake (
     logic [5:0] new_head;
 
     assign snake_init = 1'b0;
-    assign snake_enable = 1'b1;
+    
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            snake_enable <= 1'b0;
+        end
+        else begin
+            snake_enable <= (start_game) ? ~snake_enable : snake_enable;
+        end
+    end
+    // assign snake_enable = 1'b1;
     assign grow = (new_head == fruit_pos);
     // Stores the current snake data and updates the snake position as needed
     // Output snake_data array for use by other blocks
@@ -218,7 +227,19 @@ module PRNG (
     output logic [5:0] fruit_pos
 );
 
-    logic valid_fruit, shift, get_new_pos;
+    logic valid_fruit, shift, get_new_pos, grow_prev, grow_posedge;
+
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            grow_prev <= 1'b0;
+        end
+        else begin
+            grow_prev <= grow;
+        end
+    end
+
+    assign grow_posedge = grow & ~grow_prev;
+
     logic [63:0] fruit_on_snake;
 
     // spin lfsr on faster clock so it can resolve in time
@@ -234,7 +255,7 @@ module PRNG (
             get_new_pos <= 1'b0;
         end
         // trigger new fruit position search
-        else if(grow) begin
+        else if(grow_posedge) begin
             get_new_pos <= 1'b1;
         end
         // stop searching when you found a valid fruit

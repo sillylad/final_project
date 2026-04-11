@@ -53,7 +53,7 @@ module ChipInterface (
             frame_cnt <= '0;
         end
         else if(clk_60HZ) begin
-            frame_cnt <= (frame_cnt == 5'd29) ? '0 : frame_cnt + 1'b1;
+            frame_cnt <= (frame_cnt == 5'd14) ? '0 : frame_cnt + 1'b1;
         end
         else begin
             frame_cnt <= frame_cnt;
