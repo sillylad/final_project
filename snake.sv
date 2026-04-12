@@ -21,7 +21,7 @@ module Snake (
     output logic [3:0] VGA_R, VGA_G, VGA_B,
     output logic buzz,
     output snake_move curr_dir,
-    output logic [5:0] snake_length,
+    output logic [6:0] snake_length,
     output logic [5:0] head_pos,
     output logic is_snake
 );
@@ -48,7 +48,7 @@ module Snake (
     logic [63:0][5:0] snake_data;
     logic [63:0] snake_valid;
     logic snake_init, grow, snake_enable;
-    logic [5:0] snake_length;
+    logic [6:0] snake_length;
     logic [5:0] new_head;
 
     assign snake_init = 1'b0;
@@ -103,7 +103,7 @@ module Snake_Register (
     input logic [3:0] dir,
     input logic start_game, grow, snake_enable, snake_init,
     output logic [63:0][5:0] snake_data, // shift register values
-    output logic [5:0] snake_length,
+    output logic [6:0] snake_length,
     output logic [5:0] new_head,
     output snake_move curr_dir
 );
@@ -143,7 +143,7 @@ module Snake_Register (
 
     task initialize_snake();
         // Initial snake length is 3 tiles
-        snake_length <= 6'd3;
+        snake_length <= 7'd3;
 
         // Initial snake shift register = horizontal snake facing left
         for(int i = 0; i < 64; i++) begin
@@ -190,7 +190,7 @@ module Snake_Register (
             if(snake_enable) begin
                 // Snake has collided with apple, replace head and increment length
                 if(grow) begin
-                    snake_length <= snake_length + 5'd1;
+                    snake_length <= snake_length + 7'd1;
                     // Update tiles
                     for(int i = 63; i > 0; i--) begin
                         snake_data[i] <= snake_data[i-1];
@@ -320,7 +320,7 @@ endmodule : LFSR_6_BIT
 // Handle all the coloring stuff for the gameboard (snake, fruit)
 module Color_Gameboard(
     input logic [63:0][5:0] snake_data,
-    input logic [5:0] snake_length,
+    input logic [6:0] snake_length,
     input logic [5:0] fruit_pos,
     input logic [9:0] row, col,
     output logic [3:0] VGA_R, VGA_G, VGA_B,
@@ -350,7 +350,7 @@ module Color_Gameboard(
     logic [63:0] ones_mask;
 
     assign ones_mask = '1;
-    assign snake_valid = ones_mask >> (7'd64 - {1'b0, snake_length});
+    assign snake_valid = ones_mask >> (7'd64 - snake_length);
 
 
     // figure out if we're supposed to display some snek or not
