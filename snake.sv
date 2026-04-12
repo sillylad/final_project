@@ -110,7 +110,7 @@ module Snake_Register (
     output snake_move curr_dir
 );
 
-    snake_move decoded_dir;
+    snake_move decoded_dir, fast_dir;
 
     // Have a button priority for simplicity, in case multiple are pressed
     // also reject invalid moves (like moving right when currently moving left, etc.)
@@ -138,11 +138,19 @@ module Snake_Register (
         if(~rst_n) begin
             curr_dir <= MOVE_RIGHT;
         end
-        else begin
-            curr_dir <= decoded_dir;
+        else if(game_clk) begin
+            curr_dir <= fast_dir;
         end
     end
 
+    always_ff @(posedge clk, negedge rst_n) begin
+        if(~rst_n) begin
+            fast_dir <= MOVE_RIGHT;
+        end
+        else begin
+            fast_dir <= decoded_dir;
+        end
+    end
     task initialize_snake();
         // Initial snake length is 3 tiles
         snake_length <= 7'd3;
@@ -374,9 +382,10 @@ module Color_Gameboard(
     // [down, up, left, right]
     logic [63:0][3:0] next_coord;
     logic [63:0][3:0] prev_coord;
-    // figure out if we're supposed to display some snek or not
+    
+    // figure out if we're supposed to display some snek or not, and what type of snek
     genvar i;
-    generate 
+    generate
         for(i = 0; i < 64; i++) begin
             assign in_snake[i] = (snake_data[i][5:3] == tile_row) & (snake_data[i][2:0] == tile_col) & (snake_valid[i]);
             
@@ -422,6 +431,17 @@ module Color_Gameboard(
                     default: style[0] = EMPTY;
                 endcase
             end
+            // tail piece
+            else if(j == 63 | ((j < 63) & ~snake_valid[j+1])) begin
+                case(prev_coord[j])
+                    4'b1000: style[j] = DOWN_TAIL;
+                    4'b0100: style[j] = UP_TAIL;
+                    4'b0010: style[j] = LEFT_TAIL;
+                    4'b0001: style[j] = RIGHT_TAIL;
+                    default: style[j] = EMPTY;
+                endcase
+            end
+            // there exists some snake after this tile
             else if(j < 63) begin
                 case(next_coord[j] | prev_coord[j])
                     // connecting pieces on top and bottom side
@@ -439,20 +459,14 @@ module Color_Gameboard(
                     default: style[j] = EMPTY;
                 endcase
             end
+            // default just in case
             else begin
-                case(prev_coord[j])
-                    // prev piece on right
-                    4'b1000: style[j] = DOWN_TAIL;
-                    4'b0100: style[j] = UP_TAIL;
-                    4'b0010: style[j] = LEFT_TAIL;
-                    4'b0001: style[j] = RIGHT_TAIL;
-                    default: style[j] = EMPTY;
-                endcase
+                style[j] = EMPTY;
             end
         end
     end
 
-    assign debug_nc = prev_coord[1];
+    assign debug_nc = prev_coord[2];
 
     assign display_snake = |in_snake;
 
