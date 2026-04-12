@@ -23,7 +23,8 @@ module Snake (
     output snake_move curr_dir,
     output logic [6:0] snake_length,
     output logic [5:0] head_pos,
-    output logic is_snake
+    output logic is_snake,
+    output logic [3:0] debug_nc
 );
 
     // snake is moving always so dir should be sticky
@@ -85,11 +86,12 @@ module Snake (
     // Audio
 
     // Color
+    logic [3:0] debug_nc;
     Color_Gameboard cgb(.snake_data(snake_data),
                         .snake_length(snake_length),
                         .snake_valid(snake_valid),
                         .fruit_pos(fruit_pos),
-                        .row(row), .col(col), .is_snake(is_snake), .*);
+                        .row(row), .col(col), .is_snake(is_snake), .debug_nc(debug_nc), .*);
 
     // Overall Game Handling FSM
 
@@ -325,7 +327,8 @@ module Color_Gameboard(
     input logic [9:0] row, col,
     output logic [3:0] VGA_R, VGA_G, VGA_B,
     output logic is_snake,
-    output logic [63:0] snake_valid
+    output logic [63:0] snake_valid,
+    output logic [3:0] debug_nc
 );
     logic [9:0] game_row, game_col;
     logic vga_in_grid;
@@ -378,19 +381,27 @@ module Color_Gameboard(
             assign in_snake[i] = (snake_data[i][5:3] == tile_row) & (snake_data[i][2:0] == tile_col) & (snake_valid[i]);
             
             if(i < 63) begin
-                assign next_coord[i][0] = (snake_data[i][5:3] == snake_data[i+1][5:3]) & (snake_data[i][2:0] == snake_data[i+1][2:0] + 1'b1);
-                assign next_coord[i][1] = (snake_data[i][5:3] == snake_data[i+1][5:3]) & (snake_data[i][2:0] == snake_data[i+1][2:0] - 1'b1);
-                assign next_coord[i][2] = (snake_data[i][5:3] == snake_data[i+1][5:3] - 1'b1) & (snake_data[i][2:0] == snake_data[i+1][2:0]);
-                assign next_coord[i][3] = (snake_data[i][5:3] == snake_data[i+1][5:3] + 1'b1) & (snake_data[i][2:0] == snake_data[i+1][2:0]);
+                // same row, next tile is to the right
+                assign next_coord[i][0] = (snake_data[i][5:3] == snake_data[i+1][5:3]) & ((snake_data[i][2:0] + 3'd1 == snake_data[i+1][2:0]));
+                // next tile is to the left
+                assign next_coord[i][1] = (snake_data[i][5:3] == snake_data[i+1][5:3]) & ((snake_data[i][2:0] - 3'd1) == snake_data[i+1][2:0]);
+                // next tile is above
+                assign next_coord[i][2] = ((snake_data[i][5:3] - 3'd1) == snake_data[i+1][5:3]) & (snake_data[i][2:0] == snake_data[i+1][2:0]);
+                // next tile is below
+                assign next_coord[i][3] = ((snake_data[i][5:3] + 3'd1) == snake_data[i+1][5:3]) & (snake_data[i][2:0] == snake_data[i+1][2:0]);
             end
             else begin
                 assign next_coord[i] = '0;
             end
             if(i > 0) begin
-                assign prev_coord[i][0] = (snake_data[i][5:3] == snake_data[i-1][5:3]) & (snake_data[i][2:0] == snake_data[i-1][2:0] - 1'b1);
-                assign prev_coord[i][1] = (snake_data[i][5:3] == snake_data[i-1][5:3]) & (snake_data[i][2:0] == snake_data[i-1][2:0] + 1'b1);
-                assign prev_coord[i][2] = (snake_data[i][5:3] == snake_data[i-1][5:3] + 1'b1) & (snake_data[i][2:0] == snake_data[i-1][2:0]);
-                assign prev_coord[i][3] = (snake_data[i][5:3] == snake_data[i-1][5:3] - 1'b1) & (snake_data[i][2:0] == snake_data[i-1][2:0]);
+                // previous tile is to the right
+                assign prev_coord[i][0] = (snake_data[i][5:3] == snake_data[i-1][5:3]) & ((snake_data[i][2:0] + 3'd1) == snake_data[i-1][2:0]);
+                // prev tile is to the left
+                assign prev_coord[i][1] = (snake_data[i][5:3] == snake_data[i-1][5:3]) & ((snake_data[i][2:0] - 3'd1) == snake_data[i-1][2:0]);
+                // prev tile above
+                assign prev_coord[i][2] = ((snake_data[i][5:3] - 3'd1) == snake_data[i-1][5:3]) & (snake_data[i][2:0] == snake_data[i-1][2:0]);
+                // prev tile below
+                assign prev_coord[i][3] = ((snake_data[i][5:3] + 3'd1) == snake_data[i-1][5:3]) & (snake_data[i][2:0] == snake_data[i-1][2:0]);
             end
             else begin
                 assign prev_coord[i] = '0;
@@ -402,28 +413,35 @@ module Color_Gameboard(
         for(int j = 0; j < 64; j++) begin
             // SNAKE HEAD
             if(j == 0) begin
-                unique case(next_coord[0])
-                    4'b1000: style[0] = UP_HEAD;
-                    4'b0100: style[0] = DOWN_HEAD;
-                    4'b0010: style[0] = RIGHT_HEAD;
-                    4'b0001: style[0] = LEFT_HEAD;
+                case(next_coord[0])
+                    // [down, up, left, right]
+                    4'b1000: style[0] = DOWN_HEAD;
+                    4'b0100: style[0] = UP_HEAD;
+                    4'b0010: style[0] = LEFT_HEAD;
+                    4'b0001: style[0] = RIGHT_HEAD;
                     default: style[0] = EMPTY;
                 endcase
             end
             else if(j < 63) begin
-                // [down, up, left, right]
-                unique case(next_coord[j] | prev_coord[j])
+                case(next_coord[j] | prev_coord[j])
+                    // connecting pieces on top and bottom side
                     4'b1100: style[j] = UP_DOWN;
-                    4'b1010: style[j] = UP_LEFT;
-                    4'b1001: style[j] = DOWN_LEFT;
-                    4'b0110: style[j] = UP_RIGHT;
-                    4'b0101: style[j] = DOWN_RIGHT;
+                    // bottom and left
+                    4'b1010: style[j] = DOWN_LEFT;
+                    // bottom and right
+                    4'b1001: style[j] = DOWN_RIGHT;
+                    // up and left
+                    4'b0110: style[j] = UP_LEFT;
+                    // up and right
+                    4'b0101: style[j] = UP_RIGHT;
+                    // left and right
                     4'b0011: style[j] = LEFT_RIGHT;
                     default: style[j] = EMPTY;
                 endcase
             end
             else begin
-                unique case(prev_coord[j])
+                case(prev_coord[j])
+                    // prev piece on right
                     4'b1000: style[j] = DOWN_TAIL;
                     4'b0100: style[j] = UP_TAIL;
                     4'b0010: style[j] = LEFT_TAIL;
@@ -433,6 +451,8 @@ module Color_Gameboard(
             end
         end
     end
+
+    assign debug_nc = prev_coord[1];
 
     assign display_snake = |in_snake;
 

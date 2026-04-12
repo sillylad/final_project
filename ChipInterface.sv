@@ -11,7 +11,7 @@ module ChipInterface (
     logic pll_locked, clk_40;
 
     pll40M c40 (.clk_25(clk), .clk_40(clk_40), .locked(pll_locked));
-
+    // assign clk_40 = clk;
     // synchronize buttons
     logic tmp_btn, rst_n;
     logic [3:0] tmp_dir, dir;
@@ -36,7 +36,7 @@ module ChipInterface (
     logic game_clk, clk_60HZ;
     logic buzz;
     logic [1:0] curr_dir;
-    logic [5:0] snake_length;
+    logic [6:0] snake_length;
     logic [5:0] head_pos;
     logic is_snake;
 
@@ -62,12 +62,14 @@ module ChipInterface (
 
     assign game_clk = clk_60HZ & (frame_cnt == 5'd0);
 
+    logic [3:0] debug_nc;
+
     // Module handling all the snake game logic and coloring
     Snake snek (.clk(clk_40), .rst_n(rst_n), .game_clk(game_clk),
                 .start_game(start_game), .dir(dir),
                 .row(row), .col(col), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
                 .buzz(buzz), .curr_dir(curr_dir), .snake_length(snake_length),
-                .head_pos(head_pos), .is_snake(is_snake));
+                .head_pos(head_pos), .is_snake(is_snake), .debug_nc(debug_nc));
 
     // generate test pattern
     logic [5:0] rgb;
@@ -86,7 +88,7 @@ module ChipInterface (
     // end
     // assign led = frame_count;
 
-    assign led = {is_snake, 4'b0, head_pos[2:0]};
+    assign led = {debug_nc, 1'b0, head_pos[2:0]};
 
 endmodule : ChipInterface
 
