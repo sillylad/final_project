@@ -49,6 +49,7 @@ module Snake (
     logic [63:0][5:0] snake_data;
     logic [63:0] snake_valid;
     logic snake_init, grow, snake_enable;
+    logic collision;
     logic [6:0] snake_length;
     logic [5:0] new_head;
 
