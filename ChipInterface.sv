@@ -10,8 +10,8 @@ module ChipInterface (
     // 40Mhz needed for 800x600
     logic pll_locked, clk_40;
 
-    pll40M c40 (.clk_25(clk), .clk_40(clk_40), .locked(pll_locked));
-    // assign clk_40 = clk;
+    // pll40M c40 (.clk_25(clk), .clk_40(clk_40), .locked(pll_locked));
+    assign clk_40 = clk;
     // synchronize buttons
     logic tmp_btn, rst_n;
     logic [3:0] tmp_dir, dir;
