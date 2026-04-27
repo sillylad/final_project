@@ -8,7 +8,7 @@ module vga
     output logic [9:0] col,
     output logic game_clk);
 
-    // timing parameters to use for 600x800 resolution
+    /* parameters for 600x800 resolution */
     // localparam NUM_ROWS = 600;
     // localparam NUM_COLS = 800;
     // localparam HS_SYNC  = 1056;
@@ -25,7 +25,7 @@ module vga
 
     // localparam PW_POS_POLARITY = 1; // negative (0) for 640x480, pos for 800x600
 
-    // parameters for 640x480 resolution
+    /* parameters for 640x480 resolution */
     localparam NUM_ROWS = 480;
     localparam NUM_COLS = 640;
     localparam HS_SYNC  = 800;
@@ -68,14 +68,10 @@ module vga
     assign col = is_hs_disp ? (HS_count - (HS_PW + HS_BP)) : '0;
 
     assign is_hs_pw = (HS_count < HS_PW);
-    // assign is_hs_bp = (HS_PW <= HS_count) && (HS_count < (HS_PW + HS_BP));
     assign is_hs_disp = ((HS_PW + HS_BP) <= HS_count) && (HS_count < (HS_PW + HS_BP + HS_DISP));
-    // assign is_hs_fp = ((HS_PW + HS_BP + HS_DISP) <= HS_count) && (HS_count < (HS_PW + HS_BP + HS_DISP + HS_FP));
 
     assign is_vs_pw = (VS_count < VS_PW);
-    // assign is_vs_bp = (VS_PW <= VS_count) && (VS_count < (VS_PW + VS_BP));
     assign is_vs_disp = ((VS_PW + VS_BP) <= VS_count) && (VS_count < (VS_PW + VS_BP + VS_DISP));
-    // assign is_vs_fp = ((VS_PW + VS_BP + VS_DISP) <= VS_count) && (VS_count < (VS_PW + VS_BP + VS_DISP + VS_FP));
     
     //FINAL OUTPUTS OF VGA MODULE
     assign HS = (PW_POS_POLARITY) ? is_hs_pw : ~is_hs_pw;
@@ -98,23 +94,3 @@ module vga
     assign game_clk = prev_is_vs_disp & ~is_vs_disp;
 
 endmodule : vga
-
-// module vga_tb();
-
-//     logic clk_40, rst_n, HS, VS, blank;
-//     logic [9:0] row, col;
-//     vga dut (.*);
-
-//     initial begin
-//         clk_40 = 1'b0;
-//         rst_n = 1'b0;
-//         rst_n <= 1'b1;
-//         forever #5 clk_40 = ~clk_40;
-//     end
-
-//     initial begin
-//         #4000000;
-//     end
-
-
-// endmodule : vga_tb
