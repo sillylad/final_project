@@ -48,6 +48,9 @@ module vga
     logic is_hs_pw, is_hs_bp, is_hs_disp, is_hs_fp;
     logic is_vs_pw, is_vs_bp, is_vs_disp, is_vs_fp;
 
+    logic is_hs_pw, is_hs_disp;
+    logic is_vs_pw, is_vs_disp;
+
     // HS, VS counters
     always_ff @(posedge clk, negedge rst_n) begin
         if(~rst_n) begin
@@ -65,14 +68,14 @@ module vga
     assign col = is_hs_disp ? (HS_count - (HS_PW + HS_BP)) : '0;
 
     assign is_hs_pw = (HS_count < HS_PW);
-    assign is_hs_bp = (HS_PW <= HS_count) && (HS_count < (HS_PW + HS_BP));
+    // assign is_hs_bp = (HS_PW <= HS_count) && (HS_count < (HS_PW + HS_BP));
     assign is_hs_disp = ((HS_PW + HS_BP) <= HS_count) && (HS_count < (HS_PW + HS_BP + HS_DISP));
-    assign is_hs_fp = ((HS_PW + HS_BP + HS_DISP) <= HS_count) && (HS_count < (HS_PW + HS_BP + HS_DISP + HS_FP));
+    // assign is_hs_fp = ((HS_PW + HS_BP + HS_DISP) <= HS_count) && (HS_count < (HS_PW + HS_BP + HS_DISP + HS_FP));
 
     assign is_vs_pw = (VS_count < VS_PW);
-    assign is_vs_bp = (VS_PW <= VS_count) && (VS_count < (VS_PW + VS_BP));
+    // assign is_vs_bp = (VS_PW <= VS_count) && (VS_count < (VS_PW + VS_BP));
     assign is_vs_disp = ((VS_PW + VS_BP) <= VS_count) && (VS_count < (VS_PW + VS_BP + VS_DISP));
-    assign is_vs_fp = ((VS_PW + VS_BP + VS_DISP) <= VS_count) && (VS_count < (VS_PW + VS_BP + VS_DISP + VS_FP));
+    // assign is_vs_fp = ((VS_PW + VS_BP + VS_DISP) <= VS_count) && (VS_count < (VS_PW + VS_BP + VS_DISP + VS_FP));
     
     //FINAL OUTPUTS OF VGA MODULE
     assign HS = (PW_POS_POLARITY) ? is_hs_pw : ~is_hs_pw;
